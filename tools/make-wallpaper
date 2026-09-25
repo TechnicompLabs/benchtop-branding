@@ -6,7 +6,7 @@ Run from the repository root:
 
     tools/make-wallpaper
 
-It needs Python with Pillow and NumPy, and it rewrites three 3840 x 2160
+It needs Python with Pillow and NumPy, and it rewrites three 3840 x 2400
 images in usr/share/backgrounds/tc-benchtop/. The colors are those of
 technicomplabs.io (assets/css/main.css) and of its header's logo lockup:
 
@@ -18,6 +18,14 @@ technicomplabs.io (assets/css/main.css) and of its header's logo lockup:
     tc-benchtop-board.png  alternative: the dark-mode board panel #141e33 with
                            its soft glow at the top left and its triangle
                            lattice; the logo in chalk #ece8df
+
+GNOME draws them with the zoom option: it scales the image to cover the screen
+and crops what extends past it. The images are 16:10, so that 4K-wide screens
+show them pixel for pixel, 16:10 (3840 x 2400) whole and 16:9 (3840 x 2160)
+without 120 px at the top and at the bottom, and smaller screens scale them
+down. The logo is 864 px high, 40% of the height of a 16:9 screen and 36% of a
+16:10 one, and it stays whole on any screen from 9:16 (portrait) to 32:9: only
+background is cropped.
 
 The logo comes from the PNG rather than the SVG, because the SVG's straight
 segments show at this size. Its opacity is taken from the red channel (blue on
@@ -36,8 +44,8 @@ except ImportError:
 SOURCE = "source/TECHNICOMP-LABS-LOGO.png"
 OUTDIR = "usr/share/backgrounds/tc-benchtop"
 
-W, H = 3840, 2160
-LOGO_HEIGHT = 0.40        # logo height, relative to the image height
+W, H = 3840, 2400         # 16:10; see above
+LOGO_HEIGHT = 864         # px; 40% of the height of a 16:9 4K screen
 
 LIGHT = {"name": "tc-benchtop-l.png", "background": (0xf6, 0xf3, 0xec),
          "mark": (0x00, 0x56, 0x99), "wordmark": (0x00, 0x56, 0x99)}
@@ -134,7 +142,7 @@ def main():
     if not os.path.isfile(SOURCE):
         sys.exit(f"make-wallpaper: run from the repository root ({SOURCE} not found)")
     os.makedirs(OUTDIR, exist_ok=True)
-    mark, word = (scaled(m, round(H * LOGO_HEIGHT)) for m in logo_masks())
+    mark, word = (scaled(m, LOGO_HEIGHT) for m in logo_masks())
     for style in (LIGHT, DARK, BOARD):
         render(style, mark, word)
 

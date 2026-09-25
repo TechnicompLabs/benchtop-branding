@@ -28,7 +28,7 @@ The source path is made of straight segments, so the logo is visibly faceted whe
 
 ## The backgrounds
 
-`tools/make-wallpaper` generates the three backgrounds, 3840 x 2160, from `source/TECHNICOMP-LABS-LOGO.png` (the SVG's straight segments would show at this size). The colors and the board's glow and triangle lattice are taken from the site's stylesheet (`assets/css/main.css`); the script lists each one. After changing the logo or the colors, regenerate and commit the results (run from the repository root; needs Pillow and NumPy, for example `pip3 install pillow numpy`):
+`tools/make-wallpaper` generates the three backgrounds, 3840 x 2400, from `source/TECHNICOMP-LABS-LOGO.png` (the SVG's straight segments would show at this size). GNOME draws them with the `zoom` option, which scales the image to cover the screen and crops what extends past it. At 16:10, 4K-wide screens show them pixel for pixel, 16:10 whole and 16:9 with 120 px cropped at the top and at the bottom, and smaller screens scale them down. Only background is cropped: the logo, in the middle, stays whole on any screen from 9:16 (portrait) to 32:9. The colors and the board's glow and triangle lattice are taken from the site's stylesheet (`assets/css/main.css`); the script lists each one. After changing the logo or the colors, regenerate and commit the results (run from the repository root; needs Pillow and NumPy, for example `pip3 install pillow numpy`):
 
 ```
 tools/make-wallpaper
