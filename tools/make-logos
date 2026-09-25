@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Generate the distribution logos from source/TECHNICOMP-LABS-LOGO.svg.
+
+Run from the repository root:
+
+    tools/make-logos
+
+It needs rsvg-convert (librsvg) and ImageMagick (magick or convert), and it
+rewrites usr/share/pixmaps/distribution-logos/. The file names are the ones
+openSUSE's distribution-logos packages use, because openSUSE's packages refer
+to them:
+
+    light-inline.png         boot screen: the BGRT Plymouth theme draws it at the
+                             bottom (WatermarkPath, an openSUSE patch)
+    light-inline.svg         login screen: GDM's logo is
+                             /usr/share/gdm/greeter/images/distributor.svg, which
+                             gdm-branding-openSUSE links here; GNOME 50 draws it
+                             at its own size
+    square-hicolor.svg       distributor-logo icon, Cockpit
+    square-symbolic.svg      distributor-logo-symbolic icon
+    apple-touch-icon.svg/png Cockpit
+    favicon.ico              Cockpit
+    light-dual-branding.svg  the full logo, light, for dark backgrounds
+
+The source is one path: the brain-and-globe mark above the TECHNICOMP LABS
+wordmark. Its subpaths are grouped by height: the topmost group is the mark,
+everything below it is the wordmark. Each file arranges the two with SVG
+transforms; the path data itself is copied unchanged.
+"""
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import xml.etree.ElementTree as ET
+
+SOURCE = "source/TECHNICOMP-LABS-LOGO.svg"
+OUTDIR = "usr/share/pixmaps/distribution-logos"
+
+LIGHT = "#D6E6F5"     # the light mark of technicomplabs.github.io (mark-light.png)
+SYMBOLIC = "#2e3436"  # GTK recolors symbolic icons; this is only the stored color
+INLINE_HEIGHT = 64    # natural height of light-inline in pixels (openSUSE's: 44)
+WORD_HEIGHT = 0.62    # wordmark height in light-inline, relative to the mark
+GAP = 0.28            # space between mark and wordmark, relative to the mark
+FAVICON_SIZES = (16, 24, 32, 48, 64)
+
+COMMENT = ("Technicomp Labs logo, CC-BY-SA-4.0 (COPYING.artwork). Generated "
+           "from source/TECHNICOMP-LABS-LOGO.svg by tools/make-logos; "
+           "do not edit.")
+
+
+def die(msg):
+    sys.exit(f"make-logos: {msg}")
+
+
+def fmt(v):
+    s = f"{v:.4f}".rstrip("0").rstrip(".")
+    return "0" if s in ("", "-0") else s
+
+
+def read_source():
+    tree = ET.parse(SOURCE)
+    paths = [e for e in tree.iter() if e.tag.rsplit("}", 1)[-1] == "path"]
+    if len(paths) != 1:
+        die(f"expected exactly one <path> in {SOURCE}, found {len(paths)}")
+    path = paths[0]
+    d = path.get("d", "")
+    if re.search(r"[mlhvcsqta]", d):  # relative commands (z is harmless)
+        die("the path uses relative commands; only absolute ones are handled")
+    fill = path.get("fill") or die("the path has no fill color")
+    subpaths = [s.strip() for s in re.split(r"(?=M)", d) if s.strip()]
+    return fill, subpaths
+
+
+def bbox(subpaths):
+    """Bounding box from all coordinates, control points included."""
+    xs, ys = [], []
+    for sp in subpaths:
+        for cmd, args in re.findall(r"([MLHVCSQTAZ])([^MLHVCSQTAZ]*)", sp):
+            nums = [float(n) for n in re.findall(r"-?\d*\.?\d+(?:e-?\d+)?", args)]
+            if cmd == "H":
+                xs += nums
+            elif cmd == "V":
+                ys += nums
+            elif cmd == "A":
+                for i in range(0, len(nums) - 6, 7):
+                    xs.append(nums[i + 5])
+                    ys.append(nums[i + 6])
+            else:
+                xs += nums[0::2]
+                ys += nums[1::2]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def split_mark_wordmark(subpaths):
+    """The topmost band of vertically overlapping subpaths is the mark."""
+    spans = sorted((bbox([sp])[1], bbox([sp])[3], sp) for sp in subpaths)
+    bands = []
+    for top, bottom, sp in spans:
+        if bands and top <= bands[-1][1]:
+            bands[-1][1] = max(bands[-1][1], bottom)
+            bands[-1][2].append(sp)
+        else:
+            bands.append([top, bottom, [sp]])
+    if len(bands) < 2:
+        die("could not find a wordmark below the mark")
+    mark = bands[0][2]
+    word = [sp for band in bands[1:] for sp in band[2]]
+    return mark, word
+
+
+def path(subpaths, fill, transform):
+    return (f'<path fill="{fill}" fill-rule="evenodd" transform="{transform}" '
+            f'd="{" ".join(subpaths)}"/>')
+
+
+def place(box, x, y, scale):
+    """Transform that moves the top-left of box to (x, y) at the given scale."""
+    return (f"translate({fmt(x)} {fmt(y)}) scale({fmt(scale)}) "
+            f"translate({fmt(-box[0])} {fmt(-box[1])})")
+
+
+def fit(box, size, pad):
+    """Transform that centers box in a size x size square with padding."""
+    w, h = box[2] - box[0], box[3] - box[1]
+    s = (size - 2 * pad) / max(w, h)
+    return place(box, (size - w * s) / 2, (size - h * s) / 2, s)
+
+
+def svg(width, height, viewbox, body):
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'<!-- {COMMENT} -->\n'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="{viewbox}">\n'
+            + "".join(f"  {line}\n" for line in body)
+            + "</svg>\n")
+
+
+def write(name, text):
+    with open(os.path.join(OUTDIR, name), "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def run(*cmd):
+    subprocess.run(cmd, check=True)
+
+
+def main():
+    if not os.path.isfile(SOURCE):
+        die(f"run from the repository root ({SOURCE} not found)")
+    rsvg = shutil.which("rsvg-convert") or die("rsvg-convert not found")
+    magick = shutil.which("magick") or shutil.which("convert") \
+        or die("ImageMagick (magick or convert) not found")
+    os.makedirs(OUTDIR, exist_ok=True)
+
+    fill, subpaths = read_source()
+    mark, word = split_mark_wordmark(subpaths)
+    mbox, wbox, fbox = bbox(mark), bbox(word), bbox(subpaths)
+    mw, mh = mbox[2] - mbox[0], mbox[3] - mbox[1]
+    wh = wbox[3] - wbox[1]
+
+    # light-inline: mark, then the wordmark to its right, vertically centered
+    ws = WORD_HEIGHT * mh / wh
+    wx = mw + GAP * mh
+    width = wx + (wbox[2] - wbox[0]) * ws
+    px_w = round(INLINE_HEIGHT * width / mh)
+    vb_w = px_w * mh / INLINE_HEIGHT
+    write("light-inline.svg", svg(px_w, INLINE_HEIGHT,
+          f"{fmt(-(vb_w - width) / 2)} 0 {fmt(vb_w)} {fmt(mh)}", [
+              path(mark, LIGHT, place(mbox, 0, 0, 1)),
+              path(word, LIGHT, place(wbox, wx, (mh - wh * ws) / 2, ws)),
+          ]))
+
+    # square icons
+    write("square-hicolor.svg", svg(128, 128, "0 0 128 128",
+          [path(mark, fill, fit(mbox, 128, 4))]))
+    write("square-symbolic.svg", svg(16, 16, "0 0 128 128",
+          [path(mark, SYMBOLIC, fit(mbox, 128, 0))]))
+    write("apple-touch-icon.svg", svg(128, 128, "0 0 128 128", [
+        f'<rect x="1" y="1" width="126" height="126" rx="10" fill="#ffffff" '
+        f'stroke="{fill}" stroke-width="2"/>',
+        path(mark, fill, fit(mbox, 128, 14)),
+    ]))
+
+    # the full logo, as in the source, light, in openSUSE's 180 x 80 frame
+    fw, fh = fbox[2] - fbox[0], fbox[3] - fbox[1]
+    s = min((180 - 8) / fw, (80 - 8) / fh)
+    write("light-dual-branding.svg", svg(180, 80, "0 0 180 80", [
+        path(mark + word, LIGHT,
+             place(fbox, (180 - fw * s) / 2, (80 - fh * s) / 2, s)),
+    ]))
+
+    # raster files
+    out = lambda name: os.path.join(OUTDIR, name)
+    run(rsvg, "-o", out("light-inline.png"), out("light-inline.svg"))
+    run(rsvg, "-w", "57", "-h", "57", "-o", out("apple-touch-icon.png"),
+        out("apple-touch-icon.svg"))
+    with tempfile.TemporaryDirectory() as tmp:
+        pngs = []
+        for size in FAVICON_SIZES:
+            png = os.path.join(tmp, f"{size}.png")
+            run(rsvg, "-w", str(size), "-h", str(size), "-o", png,
+                out("square-hicolor.svg"))
+            pngs.append(png)
+        run(magick, *pngs, out("favicon.ico"))
+
+    print(f"make-logos: wrote {len(os.listdir(OUTDIR))} files to {OUTDIR}")
+
+
+if __name__ == "__main__":
+    main()

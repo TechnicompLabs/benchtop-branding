@@ -1,0 +1,20 @@
+Copyright (c) 2026 Technicomp Labs
+
+The artwork in this repository is licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International License (CC-BY-SA-4.0):
+https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+The artwork is:
+
+  source/TECHNICOMP-LABS-LOGO.svg
+  source/TECHNICOMP-LABS-LOGO.png
+  usr/share/pixmaps/distribution-logos/ (generated from the SVG by
+      tools/make-logos)
+  usr/share/backgrounds/tc-benchtop/tc-benchtop.png
+
+Everything else (the spec, tools/make-logos and the configuration files) is
+under the MIT license in LICENSE.
+
+Technicomp, Technicomp Labs, the Technicomp Labs logo and its brain-and-globe
+mark are trademarks of Technicomp Labs. The license covers copyright only and
+grants no rights in these trademarks (section 2(b)(2) of the license).
