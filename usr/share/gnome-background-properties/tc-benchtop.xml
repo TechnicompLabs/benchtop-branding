@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
-<!-- Technicomp Benchtop Linux: the default background, listed in Settings,
-     Appearance. 90-tc-benchtop-branding.gschema.override makes it the default. -->
+<!-- Technicomp Benchtop Linux: the backgrounds listed in Settings, Appearance.
+     The first is the default (90-tc-benchtop-branding.gschema.override), with
+     one image for the light style and one for the dark style. -->
 <wallpapers>
   <wallpaper deleted="false">
     <name>Technicomp Benchtop</name>
-    <filename>/usr/share/backgrounds/tc-benchtop/tc-benchtop.png</filename>
+    <filename>/usr/share/backgrounds/tc-benchtop/tc-benchtop-l.png</filename>
+    <filename-dark>/usr/share/backgrounds/tc-benchtop/tc-benchtop-d.png</filename-dark>
     <options>zoom</options>
     <shade_type>solid</shade_type>
-    <pcolor>#ffffff</pcolor>
-    <scolor>#ffffff</scolor>
+    <pcolor>#f6f3ec</pcolor>
+    <scolor>#161b24</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Technicomp Benchtop Board</name>
+    <filename>/usr/share/backgrounds/tc-benchtop/tc-benchtop-board.png</filename>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#141e33</pcolor>
+    <scolor>#141e33</scolor>
   </wallpaper>
 </wallpapers>

@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Generate the wallpapers from source/TECHNICOMP-LABS-LOGO.png.
+
+Run from the repository root:
+
+    tools/make-wallpaper
+
+It needs Python with Pillow and NumPy, and it rewrites three 3840 x 2160
+images in usr/share/backgrounds/tc-benchtop/. The colors are those of
+technicomplabs.io (assets/css/main.css) and of its header's logo lockup:
+
+    tc-benchtop-l.png      light style: the page #f6f3ec; the logo in the link
+                           blue #005699
+    tc-benchtop-d.png      dark style: the dark-mode page #161b24; the mark in
+                           the light mark's blue #d6e6f5 (mark-light.png), the
+                           wordmark in the dark-mode link blue #7db6e8
+    tc-benchtop-board.png  alternative: the dark-mode board panel #141e33 with
+                           its soft glow at the top left and its triangle
+                           lattice; the logo in chalk #ece8df
+
+The logo comes from the PNG rather than the SVG, because the SVG's straight
+segments show at this size. Its opacity is taken from the red channel (blue on
+white), and its topmost band of rows is the mark, the rest the wordmark.
+"""
+
+import os
+import sys
+
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw
+except ImportError:
+    sys.exit("make-wallpaper: needs Pillow and NumPy (pip install pillow numpy)")
+
+SOURCE = "source/TECHNICOMP-LABS-LOGO.png"
+OUTDIR = "usr/share/backgrounds/tc-benchtop"
+
+W, H = 3840, 2160
+LOGO_HEIGHT = 0.40        # logo height, relative to the image height
+
+LIGHT = {"name": "tc-benchtop-l.png", "background": (0xf6, 0xf3, 0xec),
+         "mark": (0x00, 0x56, 0x99), "wordmark": (0x00, 0x56, 0x99)}
+DARK = {"name": "tc-benchtop-d.png", "background": (0x16, 0x1b, 0x24),
+        "mark": (0xd6, 0xe6, 0xf5), "wordmark": (0x7d, 0xb6, 0xe8)}
+BOARD = {"name": "tc-benchtop-board.png", "background": (0x14, 0x1e, 0x33),
+         "mark": (0xec, 0xe8, 0xdf), "wordmark": (0xec, 0xe8, 0xdf),
+         "board": True}
+
+# the board's background (.board in main.css)
+GLOW = ((120, 160, 230), 0.10)   # radial-gradient(ellipse 70% 90% at 12% 0%, ...)
+LATTICE_SIDE = 80                # px; 40 CSS px on the site, at 2x
+LATTICE_OPACITY = 0.055          # stroke-opacity
+
+
+def logo_masks():
+    """The logo's opacity, cropped to the logo: (mark, wordmark) arrays of the
+    same size, each zero where the other part is."""
+    rgb = np.asarray(Image.open(SOURCE).convert("RGB"), dtype=np.float64)
+    red = rgb[:, :, 0]
+    ink = np.percentile(red[red < 128], 5)       # the logo's own red value
+    alpha = np.clip((255.0 - red) / (255.0 - ink), 0.0, 1.0)
+    ys, xs = np.nonzero(alpha > 0.02)
+    alpha = alpha[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    rows = alpha.max(axis=1) > 0.02
+    gap = int(np.argmin(rows))                   # first empty row: end of the mark
+    if rows[gap]:
+        sys.exit("make-wallpaper: could not find the gap below the mark")
+    mark, word = alpha.copy(), alpha.copy()
+    mark[gap:] = 0.0
+    word[:gap] = 0.0
+    return mark, word
+
+
+def scaled(mask, height):
+    img = Image.fromarray((mask * 255).round().astype(np.uint8), "L")
+    width = round(img.width * height / img.height)
+    return np.asarray(img.resize((width, height), Image.LANCZOS),
+                      dtype=np.float64) / 255.0
+
+
+def blend(base, color, alpha):
+    """base: HxWx3 float; color: rgb tuple; alpha: HxW float."""
+    return base * (1 - alpha[..., None]) + np.array(color, float) * alpha[..., None]
+
+
+def glow():
+    """radial-gradient(ellipse 70% 90% at 12% 0%, color, transparent 70%)."""
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float64)
+    d = np.hypot((xx - 0.12 * W) / (0.70 * W), yy / (0.90 * H))
+    return np.clip(1.0 - d / 0.70, 0.0, 1.0) * GLOW[1]
+
+
+def lattice():
+    """The board's triangle lattice: horizontal lines and both diagonals.
+
+    Drawn at twice the size and scaled down, which smooths the diagonals."""
+    s = 2
+    img = Image.new("L", (W * s, H * s), 0)
+    draw = ImageDraw.Draw(img)
+    side, width = LATTICE_SIDE * s, 2 * s
+    row = side * 3 ** 0.5 / 2
+    k = 0
+    while k * row <= H * s:
+        draw.line([(0, k * row), (W * s, k * row)], fill=255, width=width)
+        k += 1
+    run = H * s / 3 ** 0.5    # horizontal travel of a 60-degree line
+    for k in range(-int(run // side) - 1, int((W * s + run) // side) + 2):
+        x = k * side
+        draw.line([(x, 0), (x + run, H * s)], fill=255, width=width)
+        draw.line([(x, 0), (x - run, H * s)], fill=255, width=width)
+    img = img.resize((W, H), Image.LANCZOS)
+    return np.asarray(img, dtype=np.float64) / 255.0 * LATTICE_OPACITY
+
+
+def render(style, mark, word):
+    canvas = np.empty((H, W, 3))
+    canvas[:] = style["background"]
+    if style.get("board"):
+        canvas = blend(canvas, GLOW[0], glow())
+        canvas = blend(canvas, (255, 255, 255), lattice())
+    h, w = mark.shape
+    x, y = (W - w) // 2, (H - h) // 2
+    region = canvas[y:y + h, x:x + w]
+    region = blend(region, style["mark"], mark)
+    region = blend(region, style["wordmark"], word)
+    canvas[y:y + h, x:x + w] = region
+    path = os.path.join(OUTDIR, style["name"])
+    Image.fromarray(canvas.round().astype(np.uint8), "RGB").save(path, optimize=True)
+    print(f"make-wallpaper: wrote {path}")
+
+
+def main():
+    if not os.path.isfile(SOURCE):
+        sys.exit(f"make-wallpaper: run from the repository root ({SOURCE} not found)")
+    os.makedirs(OUTDIR, exist_ok=True)
+    mark, word = (scaled(m, round(H * LOGO_HEIGHT)) for m in logo_masks())
+    for style in (LIGHT, DARK, BOARD):
+        render(style, mark, word)
+
+
+if __name__ == "__main__":
+    main()

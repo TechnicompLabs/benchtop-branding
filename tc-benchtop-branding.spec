@@ -6,7 +6,9 @@
 # installed files are laid out in this repository as a filesystem tree (usr/)
 # that mirrors their final paths, and the spec installs that tree verbatim.
 # tools/make-logos generates usr/share/pixmaps/distribution-logos/ from
-# source/TECHNICOMP-LABS-LOGO.svg; see README.md.
+# source/TECHNICOMP-LABS-LOGO.svg, and tools/make-wallpaper the backgrounds in
+# usr/share/backgrounds/tc-benchtop/ from source/TECHNICOMP-LABS-LOGO.png; see
+# README.md.
 #
 Name:           tc-benchtop-branding
 Version:        0.1.0
@@ -21,8 +23,9 @@ Requires:       distribution-logos-tc-benchtop = %{version}
 
 %description
 Branding of Technicomp Benchtop Linux: the default GNOME desktop background,
-which is also offered under Settings, Appearance. The Technicomp logos are in
-distribution-logos-tc-benchtop.
+with one image for the light style and one for the dark style, and an
+alternative background, all offered under Settings, Appearance. The Technicomp
+logos are in distribution-logos-tc-benchtop.
 
 %package -n distribution-logos-tc-benchtop
 Summary:        Technicomp logos for Technicomp Benchtop Linux
@@ -65,13 +68,13 @@ install -d "%{buildroot}"
 
 %files
 %license LICENSE COPYING.artwork
-# wallpaper
+# wallpapers
 %dir %{_datadir}/backgrounds
 %{_datadir}/backgrounds/tc-benchtop
-# its entry in Settings, Appearance
+# their entries in Settings, Appearance
 %dir %{_datadir}/gnome-background-properties
 %{_datadir}/gnome-background-properties/tc-benchtop.xml
-# makes it the default background
+# the default background
 %dir %{_datadir}/glib-2.0
 %dir %{_datadir}/glib-2.0/schemas
 %{_datadir}/glib-2.0/schemas/90-tc-benchtop-branding.gschema.override

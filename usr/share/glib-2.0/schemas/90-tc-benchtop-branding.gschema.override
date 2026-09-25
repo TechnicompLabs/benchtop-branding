@@ -1,12 +1,12 @@
-# Technicomp Benchtop Linux: the default desktop background, for the light and
-# the dark style. GNOME's lock screen shows the same background, blurred.
-# glib-compile-schemas reads override files in name order, and a later file
-# replaces an earlier file's value, so this file takes precedence over
-# openSUSE's 20_openSUSE-branding.gschema.override (gio-branding-openSUSE),
-# which names the openSUSE wallpaper. glib2-tools recompiles the schemas when
-# this file is installed or removed.
+# Technicomp Benchtop Linux: the default desktop background, one image for the
+# light style and one for the dark style. GNOME's lock screen shows the same
+# background, blurred. glib-compile-schemas reads override files in name
+# order, and a later file replaces an earlier file's value, so this file takes
+# precedence over openSUSE's 20_openSUSE-branding.gschema.override
+# (gio-branding-openSUSE), which names the openSUSE wallpaper. glib2-tools
+# recompiles the schemas when this file is installed or removed.
 [org.gnome.desktop.background]
-picture-uri='file:///usr/share/backgrounds/tc-benchtop/tc-benchtop.png'
-picture-uri-dark='file:///usr/share/backgrounds/tc-benchtop/tc-benchtop.png'
+picture-uri='file:///usr/share/backgrounds/tc-benchtop/tc-benchtop-l.png'
+picture-uri-dark='file:///usr/share/backgrounds/tc-benchtop/tc-benchtop-d.png'
 picture-options='zoom'
-primary-color='#ffffff'
+primary-color='#f6f3ec'

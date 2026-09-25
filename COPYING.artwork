@@ -10,10 +10,11 @@ The artwork is:
   source/TECHNICOMP-LABS-LOGO.png
   usr/share/pixmaps/distribution-logos/ (generated from the SVG by
       tools/make-logos)
-  usr/share/backgrounds/tc-benchtop/tc-benchtop.png
+  usr/share/backgrounds/tc-benchtop/ (generated from the PNG by
+      tools/make-wallpaper)
 
-Everything else (the spec, tools/make-logos and the configuration files) is
-under the MIT license in LICENSE.
+Everything else (the spec, the tools and the configuration files) is under
+the MIT license in LICENSE.
 
 Technicomp, Technicomp Labs, the Technicomp Labs logo and its brain-and-globe
 mark are trademarks of Technicomp Labs. The license covers copyright only and
